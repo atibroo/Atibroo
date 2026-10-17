@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const AtibrooApp());
 }
 
@@ -9,26 +11,30 @@ class AtibrooApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Atibroo',
-      theme: ThemeData.dark(),
-      home: const HomePage(),
+      home: VideoHome(),
     );
   }
 }
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class VideoHome extends StatefulWidget {
+  const VideoHome({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<VideoHome> createState() => _VideoHomeState();
 }
 
-class _HomePageState extends State<HomePage> {
-  int selectedIndex = 0;
-  bool isLiked = false;
-  bool isArabic = true;
+class _VideoHomeState extends State<VideoHome> {
+  bool arabic = true;
+  int currentIndex = 0;
+
+  final List<String> videos = [
+    'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
+    'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -36,16 +42,26 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          const Center(
-            child: Icon(
-              Icons.play_circle_outline,
-              color: Colors.white38,
-              size: 90,
-            ),
+          PageView.builder(
+            scrollDirection: Axis.vertical,
+            itemCount: videos.length,
+            onPageChanged: (index) {
+              setState(() {
+                currentIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return VideoItem(
+                key: ValueKey(index),
+                url: videos[index],
+                active: index == currentIndex,
+                arabic: arabic,
+              );
+            },
           ),
 
           Positioned(
-            top: 55,
+            top: 50,
             left: 0,
             right: 0,
             child: Center(
@@ -54,17 +70,19 @@ class _HomePageState extends State<HomePage> {
                   const Text(
                     'Atibroo',
                     style: TextStyle(
+                      color: Colors.cyanAccent,
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Colors.cyanAccent,
                     ),
                   ),
-                  const SizedBox(height: 12),
                   Text(
-                    isArabic
-                        ? 'المتابَعون     |     لك'
-                        : 'Following     |     For You',
-                    style: const TextStyle(fontSize: 17),
+                    arabic
+                        ? 'المتابَعون  |  لك'
+                        : 'Following  |  For You',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                    ),
                   ),
                 ],
               ),
@@ -72,108 +90,162 @@ class _HomePageState extends State<HomePage> {
           ),
 
           Positioned(
-            right: 15,
-            bottom: 110,
-            child: Column(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.favorite,
-                    color: isLiked ? Colors.red : Colors.white,
-                    size: 35,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      isLiked = !isLiked;
-                    });
-                  },
-                ),
-                const SizedBox(height: 20),
-                const Icon(
-                  Icons.comment,
-                  size: 35,
-                ),
-                const SizedBox(height: 20),
-                const Icon(
-                  Icons.share,
-                  size: 35,
-                ),
-              ],
-            ),
-          ),
-
-          Positioned(
-            bottom: 110,
-            left: 15,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '@Atibroo',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isArabic
-                      ? 'مرحباً بك في Atibroo 🎬'
-                      : 'Welcome to Atibroo 🎬',
-                ),
-              ],
-            ),
-          ),
-
-          Positioned(
             top: 45,
             right: 10,
             child: IconButton(
-              icon: const Icon(Icons.language),
+              icon: const Icon(
+                Icons.language,
+                color: Colors.white,
+              ),
               onPressed: () {
                 setState(() {
-                  isArabic = !isArabic;
+                  arabic = !arabic;
                 });
               },
             ),
           ),
         ],
       ),
+    );
+  }
+}
 
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.black,
-        selectedItemColor: Colors.cyanAccent,
-        unselectedItemColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        currentIndex: selectedIndex,
-        onTap: (index) {
-          setState(() {
-            selectedIndex = index;
-          });
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.home),
-            label: isArabic ? 'الرئيسية' : 'Home',
+class VideoItem extends StatefulWidget {
+  final String url;
+  final bool active;
+  final bool arabic;
+
+  const VideoItem({
+    super.key,
+    required this.url,
+    required this.active,
+    required this.arabic,
+  });
+
+  @override
+  State<VideoItem> createState() => _VideoItemState();
+}
+
+class _VideoItemState extends State<VideoItem> {
+  late VideoPlayerController controller;
+  bool liked = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.url),
+    );
+
+    controller.initialize().then((_) {
+      if (!mounted) return;
+
+      controller.setLooping(true);
+
+      if (widget.active) {
+        controller.play();
+      }
+
+      setState(() {});
+    });
+  }
+
+  @override
+  void didUpdateWidget(VideoItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.active && controller.value.isInitialized) {
+      controller.play();
+    } else {
+      controller.pause();
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (controller.value.isInitialized)
+          GestureDetector(
+            onTap: () {
+              if (controller.value.isPlaying) {
+                controller.pause();
+              } else {
+                controller.play();
+              }
+              setState(() {});
+            },
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: controller.value.size.width,
+                height: controller.value.size.height,
+                child: VideoPlayer(controller),
+              ),
+            ),
+          )
+        else
+          const Center(
+            child: CircularProgressIndicator(
+              color: Colors.cyanAccent,
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.search),
-            label: isArabic ? 'اكتشف' : 'Discover',
+
+        Positioned(
+          right: 15,
+          bottom: 120,
+          child: Column(
+            children: [
+              IconButton(
+                icon: Icon(
+                  Icons.favorite,
+                  size: 35,
+                  color: liked ? Colors.red : Colors.white,
+                ),
+                onPressed: () {
+                  setState(() {
+                    liked = !liked;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+              const Icon(
+                Icons.comment,
+                color: Colors.white,
+                size: 35,
+              ),
+              const SizedBox(height: 20),
+              const Icon(
+                Icons.share,
+                color: Colors.white,
+                size: 35,
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.add_box),
-            label: isArabic ? 'نشر' : 'Upload',
+        ),
+
+        Positioned(
+          left: 15,
+          bottom: 80,
+          child: Text(
+            widget.arabic
+                ? '@Atibroo\nمرحباً بك في Atibroo 🎬'
+                : '@Atibroo\nWelcome to Atibroo 🎬',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 17,
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.notifications),
-            label: isArabic ? 'الإشعارات' : 'Notifications',
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.person),
-            label: isArabic ? 'حسابي' : 'Profile',
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
